@@ -64,7 +64,7 @@ matflow env setup dream3d -p /absolute/path/to/pipeline-runner
 This will live somewhere inside the Dream3D application folder. On Windows, it will be under:
 `\DREAM3D-6.5.171-Win64\PipelineRunner.exe`. Please provide the full absolute (for example `C:\software\Dream3D\DREAM3D-6.5.171-Win64`). You may have to use quotes if there is a space in the file path. On Linux, it will be under a `bin` directory.
 
-Let MatFlow know where the MATLAB runtime is (the path that ends in R2024b):
+Let MatFlow know where the MATLAB runtime is (the path that ends in R2024b). Alternatively, see below if you have an existing working installation of MATLAB and MTEX.
 
 ```
 matflow env setup matlab --runtime-path /path/to/matlab/runtime/R2024b
@@ -132,6 +132,44 @@ or:
 matflow env setup moose --singularity-sif /path/to/proteus.sif
 ```
 
+### Using a MATLAB + MTEX installation
+
+You can manually write the Matlab environment defninition if you have a working, licenced installation of MATLAB, and MTEX installed. Please modify your `~/.matflow/configured_envs.yaml` file to include the following:
+
+**Linux/MacOS**
+
+Modify the path to MTEX, and make sure matlab is on `PATH`; or use the full path to the executable:
+
+```yaml
+- name: matlab_env
+  setup: |    
+    MTEX_DIR=/full/path/to/toolboxes/mtex/mtex-6.0.0
+  executables:
+  - label: run_mtex
+    instances:
+    - command: |
+          for dir in $(find ${MTEX_DIR} -type d | grep -v -e ".git" -e "@" -e "private"); do MATLABPATH="${dir};${MATLABPATH}"; done
+          export MATLABPATH=${MATLABPATH}
+          matlab -softwareopengl -singleCompThread -batch "addpath('<<script_dir>>'); <<script_name_no_ext>> <<args>>"
+      num_cores: 1
+      parallel_mode: null
+```
+
+**Windows**
+
+MTEX must be configured to initialise each time you start MATLAB. Change the path to `matlab.exe` accordingly:
+
+```yaml
+- name: matlab_env
+  executables:
+    - label: run_mtex
+      instances:
+        - command: |
+            & 'C:\path\to\matlab.exe' -batch "addpath('<<script_dir>>'); <<script_name_no_ext>> <<args>>"
+          num_cores: 1
+          parallel_mode: null
+```
+
 ### Pointing MatFlow to native installations of DAMASK and Proteus
 
 We recommend using the provided Docker image of DAMASK, because it includes modifications not currently found in the public code. However, if you have a working installation of Proteus, you can tell MatFlow to use that instead of the Docker image. The easiest way
@@ -157,3 +195,4 @@ to do that is to open up MatFlow's environment definitions file. If you have run
 You can also prepend `mpirun` to the `command` if you like. The environment variable `$MATFLOW_RUN_NUM_CORES` contains the number of requested CPU cores for the workflow.
 
 Note: this command should be the proteus invocation command without the argument to the MOOSE input file.
+
